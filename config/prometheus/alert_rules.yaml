@@ -2,7 +2,7 @@ groups:
 - name: sandbox
   rules:
   - alert: HighErrorRate
-    expr: rate(http_server_request_duration_seconds_count{http_response_status_code="500"}[1m]) / rate(http_server_request_duration_seconds_count[1m]) > 0.1
+    expr: sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[2m])) / sum(rate(http_server_request_duration_seconds_count[2m])) > 0.05
     for: 10s
     labels:
       severity: critical

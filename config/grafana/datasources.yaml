@@ -6,7 +6,7 @@ datasources:
     url: http://prometheus:9090
     jsonData:
       exemplarTraceIdDestinations:
-        - name: trace_id
+        - name: TraceID
           datasourceUid: Jaeger
 
   - name: Jaeger
