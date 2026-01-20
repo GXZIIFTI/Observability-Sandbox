@@ -41,11 +41,13 @@ services:
       - "9090:9090" # Prometheus UI
     volumes:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/alert_rules.yaml:/etc/prometheus/alert_rules.yaml
+
     networks:
       - observability
 
   loki:
-    image: grafana/loki:latest     
+    image: grafana/loki:latest    
     ports:
       - "3100:3100" # API / ingestion
     networks:
@@ -55,8 +57,20 @@ services:
     image: fluent/fluent-bit:latest
     volumes:
       - ./config/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf
+      - ./config/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
+    networks:
+      - observability
+  
+  alertmanager:
+    image: prom/alertmanager:latest
+    volumes:
+      - ./config/alert-manager/alertmanager.yaml:/etc/alertmanager/alertmanager.yml
+    ports:
+      - "9093:9093"
     networks:
       - observability
 
@@ -77,7 +91,18 @@ services:
       - jaeger
     networks:
       - observability
-
+    
+  k6:
+    image: grafana/k6:latest
+    volumes:
+      - ./k6/load-test.js:/load-test.js
+    command: run /load-test.js
+    profiles:
+      - tools
+    depends_on:
+      - app
+    networks:
+      - observability
 
 
 networks:

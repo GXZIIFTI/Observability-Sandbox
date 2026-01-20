@@ -1,0 +1,18 @@
+groups:
+- name: sandbox
+  rules:
+  - alert: HighErrorRate
+    expr: rate(http_server_request_duration_seconds_count{http_response_status_code="500"}[1m]) / rate(http_server_request_duration_seconds_count[1m]) > 0.1
+    for: 10s
+    labels:
+      severity: critical
+    annotations:
+      summary: "High Error Rate detected"
+      
+  - alert: HighLatency
+    expr: histogram_quantile(0.95, sum(rate(http_server_request_duration_seconds_bucket[1m])) by (le)) > 0.2
+    for: 10s
+    labels:
+      severity: warning
+    annotations:
+      summary: "P95 Latency > 200ms"
