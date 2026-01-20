@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log"
+	"log/slog"
 	"math/rand"
 	"net/http"
 	"os"
@@ -17,7 +17,11 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	"go.opentelemetry.io/otel/trace"
+
 )
+
+var logger *slog.Logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 
 func main() {
 	// Initialize OpenTelemetry
@@ -96,17 +100,40 @@ func healthzHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func workHandler(w http.ResponseWriter, r *http.Request) {
-	// Sleep for random time (0-500ms)
-	latency := time.Duration(rand.Intn(500)) * time.Millisecond
-	time.Sleep(latency)
+	ctx := r.Context()
+	span := trace.SpanFromContext(ctx)
 
-	// 20% chance of error
+	traceID := span.SpanContext().TraceID().String()
+	log := logger.With(
+		"trace_id", traceID,
+		"span_id", span.SpanContext().SpanID().String(),
+	)
+
+	// Nested span to simulate work
+	_, childSpan := otel.Tracer("app").Start(ctx, "simulate_work")
+	latency := time.Duration(rand.Intn(400)) * time.Millisecond
+	time.Sleep(latency)
+	childSpan.End()
+
+	_, cacheSpan := otel.Tracer("app").Start(ctx, "db_cache_lookup")
+	time.Sleep(time.Duration(rand.Intn(200)) * time.Millisecond)
+	cacheSpan.End()
+
+	// the code fails 20% of the time
 	if rand.Float32() < 0.2 {
-		fmt.Printf("ERROR: Request failed after %v\n", latency)
+		log.Error("request failed",
+			"latency_ms", latency.Milliseconds(),
+			"status", 500,
+		)
+
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("SUCCESS: Request completed in %v\n", latency)
+	log.Info("request succeeded",
+		"latency_ms", latency.Milliseconds(),
+		"status", 200,
+	)
+
 	w.Write([]byte("Work completed\n"))
 }
