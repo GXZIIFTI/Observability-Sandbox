@@ -159,9 +159,6 @@ This is a **local sandbox** for demonstration and learning. Out of scope:
 # Verify demo service is running
 curl http://localhost:8080/healthz
 
-# Check OpenTelemetry Collector
-docker compose logs otel-collector
-
 # Generate some traffic
 docker compose --profile tools run k6
 ```
